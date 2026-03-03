@@ -1,20 +1,28 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
-import { useNavigate } from "react-router-dom";
+import { data, useNavigate } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import TravelStoryCard from "../../components/Cards/TravelStoryCard";
 import { ToastContainer, toast } from "react-toastify";
 import { MdAdd } from "react-icons/md";
 import Modal from "react-modal";
 import AddEditTravelStory from "./AddEditTravelStory";
+import ViewTravelStory from "./ViewTravelStory";
+import EmptyCard from "../../components/Cards/EmptyCard";
+import EmptyImg from "../../assets/images/add-story.svg";
 
 const Home = () => {
   const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState(null);
   const [allStories, setAllStories] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [openAddEditModal, setOpenAddEditModal] = useState({
     isShown: false,
     type: "add",
+    data: null,
+  });
+  const [openViewModal, setOpenViewModal] = useState({
+    isShown: false,
     data: null,
   });
   const getUserInfo = async () => {
@@ -41,8 +49,12 @@ const Home = () => {
       console.log("An unexpected error occured. Please try again.");
     }
   };
-  const handleEdit = async (data) => {};
-  const handleViewStory = async (data) => {};
+  const handleEdit = async (data) => {
+    setOpenAddEditModal({ isShown: true, type: "edit", data: data });
+  };
+  const handleViewStory = async (data) => {
+    setOpenViewModal({ isShown: true, data });
+  };
   const updateIsFavourite = async (storyData) => {
     const storyId = storyData._id;
     try {
@@ -60,6 +72,22 @@ const Home = () => {
       console.log("An unexpected error occured. Please try again.");
     }
   };
+  const deleteTravelStory = async (data) => {
+    const storyId = data._id;
+    try {
+      const response = await axiosInstance.delete("/delete-story/" + storyId);
+      if (response.data && !response.data.error) {
+        toast.error("Story Deleted Successfully");
+        setOpenViewModal((prevState) => ({
+          ...prevState,
+          isShown: false,
+        }));
+        getAllTravelStories();
+      }
+    } catch (error) {
+      console.log("An unexpected error occured. Please try again.");
+    }
+  };
   useEffect(() => {
     getAllTravelStories();
     getUserInfo();
@@ -67,7 +95,11 @@ const Home = () => {
   }, []);
   return (
     <>
-      <Navbar userInfo={userInfo} />
+      <Navbar
+        userInfo={userInfo}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
       <div className="container mx-auto py-10">
         <div className="flex gap-7">
           <div className="flex-1">
@@ -83,7 +115,6 @@ const Home = () => {
                       date={item.visitedDate}
                       visitedLocation={item.visitedLocation}
                       isFavourite={item.isFavourite}
-                      onEdit={() => handleEdit(item)}
                       onClick={() => handleViewStory(item)}
                       onFavouriteClick={() => updateIsFavourite(item)}
                     />
@@ -91,7 +122,10 @@ const Home = () => {
                 })}
               </div>
             ) : (
-              <>Empty Card here</>
+              <EmptyCard
+                imgSrc={EmptyImg}
+                message={`Start creating your first Travel Story! Click the 'Add' button to jot down your thoughts, ideas, and memories. Let's get started!`}
+              />
             )}
           </div>
           <div className="w-[320px]"></div>
@@ -111,11 +145,37 @@ const Home = () => {
       >
         <AddEditTravelStory
           type={openAddEditModal.type}
-          storyInfo={openAddEditModal.story}
-          onClose={()=>{
-            setOpenAddEditModal({isShown:false,type:"add",data:null})
+          storyInfo={openAddEditModal.data}
+          onClose={() => {
+            setOpenAddEditModal({ isShown: false, type: "add", data: null });
           }}
           getAllTravelStories={getAllTravelStories}
+        />
+      </Modal>
+      <Modal
+        isOpen={openViewModal.isShown}
+        onRequestClose={() => {}}
+        style={{
+          overlay: {
+            backgroundColor: "rgba(0,0,0,0.2)",
+            zIndex: 999,
+          },
+        }}
+        appElement={document.getElementById("root")}
+        className="model-box"
+      >
+        <ViewTravelStory
+          onClose={() => {
+            setOpenViewModal((prevState) => ({ ...prevState, isShown: false }));
+          }}
+          onEditClick={() => {
+            setOpenViewModal((prevState) => ({ ...prevState, isShown: false }));
+            handleEdit(openViewModal.data || null);
+          }}
+          onDeleteClick={() => {
+            deleteTravelStory(openViewModal.data || null);
+          }}
+          storyInfo={openViewModal.data || null}
         />
       </Modal>
       <button
